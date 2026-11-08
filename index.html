@@ -122,11 +122,10 @@
           <a class="btn" href="product.html?p=balance-kaartendeck-gesprekskaarten-journalvragen">alle 60 vragen · €14,99</a>
         </div>
       </div>
-      <div class="deck" id="deck" role="button" tabindex="0" aria-label="Draai de kaart om">
+      <div class="deck" id="deck" role="button" tabindex="0" aria-label="Schud een nieuwe kaart">
         <span class="under"></span><span class="under"></span>
         <div class="card">
-          <div class="face front"><img src="img/session-cards.jpg" alt="Kaart uit het Balance kaartendeck" loading="lazy"></div>
-          <div class="face back" aria-live="polite">
+          <div class="face" aria-live="polite">
             <p class="no"><span>waves of balance</span><span id="cardNo">01 / 60</span></p>
             <p class="q" id="cardQ">Waar haal jij op dit moment de meeste energie uit?</p>
             <span class="aura-dot" aria-hidden="true"></span>
@@ -292,15 +291,29 @@
     "Hoe ziet een dag eruit waarop je je echt in balans voelt?"
   ];
   const deck = document.getElementById("deck"), q = document.getElementById("cardQ"), no = document.getElementById("cardNo");
-  let last = 0;
-  function draw() {
-    if (deck.classList.contains("flipped")) { deck.classList.remove("flipped"); setTimeout(next, reduce ? 0 : 450); }
-    else next();
+  const shuffleArr = a => { for (let k = a.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [a[k], a[j]] = [a[j], a[k]]; } return a; };
+  // Vaste kaartnummers per vraag (de eerste vraag is nummer 01, zoals in de HTML)
+  const nums = [1].concat(shuffleArr(Array.from({ length: 59 }, (_, k) => k + 2)).slice(0, Q.length - 1));
+  let last = 0, order = [], busy = false;
+  // Geschud stapeltje: je ziet elke vraag één keer voordat het opnieuw geschud wordt,
+  // en de eerste kaart van een nieuw stapeltje is nooit dezelfde als de laatste.
+  function pick() {
+    if (!order.length) {
+      order = shuffleArr(Q.map((_, k) => k));
+      if (order.length > 1 && order[order.length - 1] === last) { const t = order[0]; order[0] = order[order.length - 1]; order[order.length - 1] = t; }
+    }
+    return (last = order.pop());
   }
-  function next() {
-    let i; do { i = Math.floor(Math.random() * Q.length); } while (i === last && Q.length > 1); last = i;
-    q.textContent = Q[i]; no.textContent = String(Math.floor(Math.random() * 60) + 1).padStart(2, "0") + " / 60";
-    deck.classList.add("flipped");
+  function draw() {
+    if (busy) return;
+    const i = pick();
+    const show = () => { q.textContent = Q[i]; no.textContent = String(nums[i]).padStart(2, "0") + " / 60"; };
+    if (reduce) { show(); return; }
+    busy = true;
+    deck.classList.add("shuffling", "swap");           // kaart schuift weg, tekst vervaagt
+    setTimeout(show, 430);                             // nieuwe vraag terwijl de kaart buiten beeld is
+    setTimeout(() => deck.classList.remove("swap"), 520);
+    setTimeout(() => { deck.classList.remove("shuffling"); busy = false; }, 850);
   }
   deck.addEventListener("click", draw);
   deck.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); draw(); } });
