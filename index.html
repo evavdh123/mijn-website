@@ -122,15 +122,23 @@
           <a class="btn" href="product.html?p=balance-kaartendeck-gesprekskaarten-journalvragen">alle 60 vragen · €14,99</a>
         </div>
       </div>
-      <div class="deck" id="deck" role="button" tabindex="0" aria-label="Schud een nieuwe kaart">
-        <span class="under"></span><span class="under"></span>
-        <div class="card">
-          <div class="face" aria-live="polite">
-            <p class="no"><span>waves of balance</span><span id="cardNo">01 / 60</span></p>
-            <p class="q" id="cardQ">Waar haal jij op dit moment de meeste energie uit?</p>
+      <div class="deck" id="deck" role="button" tabindex="0" aria-label="Pak een nieuwe kaart van de stapel">
+        <span class="under" aria-hidden="true"></span><span class="under" aria-hidden="true"></span>
+        <div class="card is-next" aria-hidden="true">
+          <div class="face">
+            <p class="no"><span>waves of balance</span><span class="cn"></span></p>
+            <p class="q"></p>
             <span class="aura-dot" aria-hidden="true"></span>
           </div>
         </div>
+        <div class="card is-top">
+          <div class="face">
+            <p class="no"><span>waves of balance</span><span class="cn">01 / 60</span></p>
+            <p class="q">Waar haal jij op dit moment de meeste energie uit?</p>
+            <span class="aura-dot" aria-hidden="true"></span>
+          </div>
+        </div>
+        <span class="sr-live" id="cardLive" aria-live="polite"></span>
         <span class="deck-hint">tik op de kaart</span>
       </div>
     </div>
@@ -290,30 +298,47 @@
     "Wat wil je loslaten voordat de nieuwe maand begint?",
     "Hoe ziet een dag eruit waarop je je echt in balans voelt?"
   ];
-  const deck = document.getElementById("deck"), q = document.getElementById("cardQ"), no = document.getElementById("cardNo");
+  const deck = document.getElementById("deck"), live = document.getElementById("cardLive");
   const shuffleArr = a => { for (let k = a.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [a[k], a[j]] = [a[j], a[k]]; } return a; };
   // Vaste kaartnummers per vraag (de eerste vraag is nummer 01, zoals in de HTML)
   const nums = [1].concat(shuffleArr(Array.from({ length: 59 }, (_, k) => k + 2)).slice(0, Q.length - 1));
-  let last = 0, order = [], busy = false;
-  // Geschud stapeltje: je ziet elke vraag één keer voordat het opnieuw geschud wordt,
-  // en de eerste kaart van een nieuw stapeltje is nooit dezelfde als de laatste.
-  function pick() {
-    if (!order.length) {
-      order = shuffleArr(Q.map((_, k) => k));
-      if (order.length > 1 && order[order.length - 1] === last) { const t = order[0]; order[0] = order[order.length - 1]; order[order.length - 1] = t; }
-    }
-    return (last = order.pop());
+  // De stapel: de bovenste kaart (topI) en de kaart die er direct onder ligt (nextI) liggen vast, de rest van
+  // de ronde zit in `pool`. Bij elke trekking gaat de bovenste kaart onderaan de stapel. Je ziet elke vraag
+  // één keer per ronde; een nieuwe ronde is steeds opnieuw geschud.
+  let topI = 0, pool = shuffleArr(Q.map((_, k) => k).slice(1)), nextI = pool.shift();
+  let top = deck.querySelector(".card.is-top"), nxt = deck.querySelector(".card.is-next");
+  let busy = false;
+  const setCard = (card, i) => { card.querySelector(".q").textContent = Q[i]; card.querySelector(".cn").textContent = String(nums[i]).padStart(2, "0") + " / 60"; };
+  setCard(top, topI); setCard(nxt, nextI);
+  function refill(avoid) {
+    // Nieuwe ronde: alle kaarten geschud. De kaarten uit `avoid` (net gezien) komen pas in de tweede helft terug.
+    const rest = shuffleArr(Q.map((_, k) => k).filter(k => !avoid.includes(k)));
+    const half = Math.floor(rest.length / 2);
+    avoid.forEach(k => rest.splice(half + Math.floor(Math.random() * (rest.length - half + 1)), 0, k));
+    pool = rest;
+    if (pool.length > 1 && pool[0] === topI) pool.push(pool.shift());
+  }
+  function settle(leaving) {
+    // De oude bovenste kaart ligt nu onderaan en wordt de 'volgende' kaart; de volgende wordt de bovenste.
+    leaving.classList.remove("leaving", "is-top"); leaving.classList.add("is-next"); leaving.setAttribute("aria-hidden", "true");
+    nxt.classList.remove("is-next"); nxt.classList.add("is-top"); nxt.removeAttribute("aria-hidden");
+    const gone = topI; topI = nextI;
+    if (!pool.length) refill([topI, gone]);
+    nextI = pool.shift();
+    top = nxt; nxt = leaving; setCard(nxt, nextI);
+    busy = false;
   }
   function draw() {
     if (busy) return;
-    const i = pick();
-    const show = () => { q.textContent = Q[i]; no.textContent = String(nums[i]).padStart(2, "0") + " / 60"; };
-    if (reduce) { show(); return; }
     busy = true;
-    deck.classList.add("shuffling", "swap");           // kaart schuift weg, tekst vervaagt
-    setTimeout(show, 430);                             // nieuwe vraag terwijl de kaart buiten beeld is
-    setTimeout(() => deck.classList.remove("swap"), 520);
-    setTimeout(() => { deck.classList.remove("shuffling"); busy = false; }, 850);
+    live.textContent = Q[nextI];
+    const leaving = top;
+    if (reduce) { settle(leaving); return; }
+    let done = false;
+    const fin = () => { if (!done) { done = true; settle(leaving); } };
+    leaving.classList.add("leaving");
+    leaving.addEventListener("animationend", fin, { once: true });
+    setTimeout(fin, 1300);                             // vangnet als de animatie niet afloopt
   }
   deck.addEventListener("click", draw);
   deck.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); draw(); } });
