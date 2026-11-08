@@ -21,6 +21,10 @@ Statische website (HTML/CSS/JS), geen build-stap nodig. Gemaakt als ontwerp voor
 2. De pagina's staan nu op `noindex` (`<meta name="robots" content="noindex, nofollow, noarchive">` in elke HTML-kop). Haal die regel weg zodra de site echt live moet en gevonden mag worden.
 3. Lettertypes laden via Google Fonts (Gloock, Figtree, Nanum Pen Script).
 
+## Werkwijze: eerst concept, dan live
+- Alle wijzigingen gaan eerst naar de branch `concept`. Netlify zet die als branch deploy online op `https://concept--astounding-pegasus-8d5694.netlify.app` (kost geen credits).
+- Pas na akkoord wordt `concept` samengevoegd met `main`. Dat is de productie-deploy (kost 15 credits), dus doe dit gebundeld.
+
 ## Wat is echt en wat is nog ontwerp
 - **Afrekenen werkt echt:** de knop "afrekenen" stuurt naar `https://houseofwaves.nl/cart/<variantID>:<aantal>,...` en opent de echte Shopify-checkout met de gekozen producten.
 - **Winkelwagen** wordt alleen in de browser van de bezoeker bewaard (localStorage).
